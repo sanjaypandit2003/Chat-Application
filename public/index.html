@@ -1,0 +1,4272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat.io – Realtime Chat Dashboard</title>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  />
+
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-soft: #dbeafe;
+      --primary-dark: #1d4ed8;
+      --green: #10b981;
+      --green-soft: #ecfdf5;
+      --page-bg: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --border-subtle: #e5e7eb;
+      --danger: #dc2626;
+      --danger-soft: #fee2e2;
+
+      --msg-sent-bg: #10b981;
+      --msg-sent-text: #ffffff;
+      --msg-rcvd-bg: #f3f4f6;
+      --msg-rcvd-text: #1f2937;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Inter", sans-serif;
+    }
+
+    body {
+      background-color: var(--page-bg);
+      min-height: 100vh;
+      color: var(--text-main);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+    }
+
+    /* ================= LOGIN / SIGNUP ================= */
+
+    .auth-wrapper {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #e5e7eb;
+      z-index: 30;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 460px;
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 24px 45px rgba(15, 23, 42, 0.16);
+      padding: 32px 32px 28px;
+    }
+
+    .auth-title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    .auth-title span {
+      color: var(--primary);
+    }
+
+    .auth-subtitle {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+
+    .auth-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6b7280;
+      margin-bottom: 6px;
+      margin-top: 10px;
+    }
+
+    .auth-input-wrap {
+      display: flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      padding: 8px 14px;
+      background: #f9fafb;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+
+    .auth-input-wrap:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
+      background: #ffffff;
+    }
+
+    .auth-input-wrap i {
+      color: #9ca3af;
+      margin-right: 10px;
+    }
+
+    .auth-input {
+      border: none;
+      outline: none;
+      background: transparent;
+      flex: 1;
+      font-size: 0.95rem;
+      color: #111827;
+    }
+
+    .status-text {
+      font-size: 0.8rem;
+      margin-top: 6px;
+      min-height: 18px;
+    }
+
+    .status-text.success {
+      color: #16a34a;
+    }
+
+    .status-text.error {
+      color: var(--danger);
+    }
+
+    .auth-buttons {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .auth-button {
+      flex: 1;
+      border-radius: 999px;
+      border: none;
+      padding: 11px 16px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.1s;
+      white-space: nowrap;
+    }
+
+    .auth-button.primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .auth-button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .auth-button:hover {
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .auth-button.primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .auth-button:disabled {
+      opacity: 0.6;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .auth-footer {
+      margin-top: 18px;
+      font-size: 0.8rem;
+      color: #9ca3af;
+      text-align: center;
+    }
+
+    /* ================= WORKSPACE LAYOUT ================= */
+
+    .workspace {
+      display: none;
+      height: 100vh;
+      max-height: 100vh;
+    }
+
+    .workspace.visible {
+      display: flex;
+    }
+
+    .ws-sidebar {
+      width: 240px;
+      background: #111827;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 12px;
+    }
+
+    .ws-sidebar-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px 16px;
+      border-bottom: 1px solid rgba(156, 163, 175, 0.4);
+      margin-bottom: 8px;
+    }
+
+    .ws-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    .ws-workspace-titles {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ws-workspace-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .ws-workspace-sub {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .ws-nav-section-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6b7280;
+      margin: 14px 0 6px;
+      padding-left: 10px;
+    }
+
+    .ws-nav-list {
+      list-style: none;
+    }
+
+    .nav-item {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .nav-item i {
+      width: 18px;
+      text-align: center;
+      font-size: 0.95rem;
+    }
+
+    .nav-item:hover {
+      background: rgba(55, 65, 81, 0.9);
+    }
+
+    .nav-item.active {
+      background: #e5e9ff;
+      color: #1d2433;
+    }
+
+    .nav-item.active i {
+      color: var(--primary);
+    }
+
+    .ws-sidebar-footer {
+      margin-top: auto;
+      padding: 8px 4px 4px;
+      border-top: 1px solid rgba(75, 85, 99, 0.8);
+    }
+
+    .create-room-btn {
+      width: 100%;
+      margin-bottom: 8px;
+      border-radius: 999px;
+      border: none;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: var(--primary);
+      color: white;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .create-room-btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .help-entry {
+      width: 100%;
+      border-radius: 999px;
+      border: none;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: #e5e7eb;
+      transition: background 0.15s;
+    }
+
+    .help-entry i {
+      width: 16px;
+      text-align: center;
+    }
+
+    .help-entry:hover {
+      background: rgba(55, 65, 81, 0.9);
+    }
+
+    /* MAIN AREA */
+
+    .ws-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-height: 100vh;
+    }
+
+    .ws-topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .ws-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar-app-name {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .topbar-search {
+      position: relative;
+      width: 260px;
+    }
+
+    .topbar-search input {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      padding: 7px 30px;
+      font-size: 0.85rem;
+      outline: none;
+      background: #f9fafb;
+    }
+
+    .topbar-search i {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+      font-size: 0.85rem;
+    }
+
+    .ws-topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .icon-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: #6b7280;
+      font-size: 1rem;
+      padding: 6px;
+      border-radius: 999px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .icon-btn:hover {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .logout-top-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--danger-soft);
+      font-size: 0.85rem;
+      font-weight: 500;
+      background: #ffffff;
+      color: var(--danger);
+      cursor: pointer;
+      box-shadow: 0 16px 35px rgba(15, 23, 42, 0.16);
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    }
+
+    .logout-top-btn i {
+      font-size: 0.9rem;
+    }
+
+    .logout-top-btn:hover {
+      background: #fef2f2;
+      transform: translateY(-1px);
+      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.22);
+    }
+
+    /* CONTENT + PAGES */
+
+    .ws-content {
+      flex: 1;
+      background: #f3f4f6;
+      padding: 18px 20px 20px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    /* ================= HOME PAGE ================= */
+
+    .home-layout {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 18px;
+    }
+
+    .home-header {
+      grid-column: 1 / -1;
+      margin-bottom: 6px;
+    }
+
+    .home-header h1 {
+      font-size: 1.6rem;
+      margin-bottom: 4px;
+    }
+
+    .home-header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .card-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      font-weight: 500;
+    }
+
+    .activity-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .activity-item {
+      display: flex;
+      gap: 10px;
+      padding: 10px 8px;
+      border-radius: 12px;
+      transition: background 0.1s;
+    }
+
+    .activity-item:hover {
+      background: #f9fafb;
+    }
+
+    .activity-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      background: #fee2e2;
+      color: #b91c1c;
+      flex-shrink: 0;
+    }
+
+    .activity-content {
+      flex: 1;
+    }
+
+    .activity-title {
+      font-size: 0.88rem;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .activity-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .activity-time {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      white-space: nowrap;
+    }
+
+    .qa-list {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .qa-item {
+      border-radius: 12px;
+      padding: 8px 10px;
+      border: 1px solid transparent;
+      background: #f9fafb;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      transition: background 0.1s, border-color 0.1s, transform 0.1s;
+    }
+
+    .qa-item span.room-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      background: #e5e7eb;
+    }
+
+    .qa-item:hover {
+      background: #ffffff;
+      border-color: var(--primary-soft);
+      transform: translateY(-1px);
+    }
+
+    /* ================= ALL CHATS PAGE ================= */
+
+    .chats-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 16px;
+      height: 100%;
+    }
+
+    .channels-panel {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .channels-panel h3 {
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+
+    .channels-panel small {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .channel-btn {
+      width: 100%;
+      border: none;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 8px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      color: #111827;
+      transition: background 0.1s;
+    }
+
+    .channel-btn i {
+      width: 18px;
+      text-align: center;
+      color: #6b7280;
+    }
+
+    .channel-btn:hover {
+      background: #f3f4f6;
+    }
+
+    .channel-btn.active {
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+    }
+
+    .channel-btn.active i {
+      color: var(--primary-dark);
+    }
+
+    .chat-panel {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-panel-header {
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .chat-panel-header h2 {
+      font-size: 1rem;
+    }
+
+    .chat-panel-header .status {
+      font-size: 0.8rem;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chat-panel-header .status i {
+      font-size: 0.55rem;
+    }
+
+    #messages-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background-image: radial-gradient(
+        rgba(229, 231, 235, 0.6) 1px,
+        transparent 1px
+      );
+      background-size: 32px 32px;
+    }
+
+    .message-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      max-width: 70%;
+    }
+
+    .message-row.sent {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: #ddd;
+      background-size: cover;
+      flex-shrink: 0;
+    }
+
+    .bubble-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sender-name {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+
+    .sent .sender-name {
+      text-align: right;
+      display: none;
+    }
+
+    .bubble {
+      padding: 10px 13px;
+      border-radius: 16px;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      word-wrap: break-word;
+      max-width: 100%;
+    }
+
+    .received .bubble {
+      background-color: var(--msg-rcvd-bg);
+      color: var(--msg-rcvd-text);
+      border-bottom-left-radius: 4px;
+    }
+
+    .sent .bubble {
+      background-color: var(--msg-sent-bg);
+      color: var(--msg-sent-text);
+      border-bottom-right-radius: 4px;
+    }
+
+    .bubble .time {
+      font-size: 0.68rem;
+      margin-top: 4px;
+      opacity: 0.75;
+      text-align: right;
+    }
+
+    .chat-input-area {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border-subtle);
+      background: #ffffff;
+    }
+
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      background: #f9fafb;
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      padding: 5px 8px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: var(--green);
+      box-shadow: 0 0 0 2px var(--green-soft);
+    }
+
+    .input-wrapper input {
+      flex: 1;
+      border: none;
+      padding: 8px 10px;
+      font-size: 0.95rem;
+      outline: none;
+      background: transparent;
+    }
+
+    .send-btn {
+      background-color: var(--green);
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .send-btn:hover {
+      background-color: #059669;
+      transform: scale(1.05);
+    }
+
+    .system {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    /* ================= HELP DESK PAGE ================= */
+
+    .help-layout {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .help-header h2 {
+      font-size: 1.15rem;
+      margin-bottom: 3px;
+    }
+
+    .help-header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .help-card {
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid var(--border-subtle);
+      padding: 14px 14px 12px;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      transition: border 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+
+    .help-card:hover {
+      border-color: var(--green);
+      box-shadow: 0 10px 24px rgba(16, 185, 129, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .help-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--green-soft);
+      color: var(--green);
+      flex-shrink: 0;
+    }
+
+    .help-card-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .help-card-text {
+      font-size: 0.83rem;
+      color: var(--text-muted);
+    }
+
+    .help-detail {
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid var(--border-subtle);
+      padding: 14px 16px;
+    }
+
+    .help-detail h3 {
+      font-size: 0.98rem;
+      margin-bottom: 6px;
+    }
+
+    .help-detail p,
+    .help-detail li {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .help-detail ul {
+      margin-left: 18px;
+      margin-top: 4px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .help-detail .cta-btn {
+      margin-top: 10px;
+      border-radius: 999px;
+      border: none;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      background: var(--primary);
+      color: #ffffff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* SIMPLE PLACEHOLDER / COMMON PAGE STYLES */
+
+    .placeholder {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      padding: 18px;
+      height: 100%;
+    }
+
+    .placeholder h2 {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    .placeholder p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .badge-soft {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    /* ================= SETTINGS PAGE ================= */
+
+    .settings-layout {
+      max-width: 640px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding-bottom: 20px;
+    }
+
+    .settings-header h2 {
+      font-size: 1.2rem;
+      margin-bottom: 4px;
+    }
+
+    .settings-header p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .settings-card {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      padding: 16px 18px;
+    }
+
+    .settings-section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .settings-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-row-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .settings-label-main {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .settings-label-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .settings-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      overflow: hidden;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .settings-mini-input {
+      width: 220px;
+      max-width: 60%;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      padding: 7px 10px;
+      font-size: 0.88rem;
+      outline: none;
+      background: #f9fafb;
+    }
+
+    .settings-mini-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+      background: #ffffff;
+    }
+
+    .settings-small-button {
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.82rem;
+      background: #f9fafb;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .settings-small-button:hover {
+      background: #eef2ff;
+      border-color: var(--primary-soft);
+      transform: translateY(-1px);
+    }
+
+    .settings-small-button.primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    .settings-small-button.primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .settings-small-button.danger {
+      border-color: var(--danger-soft);
+      color: var(--danger);
+      background: #fef2f2;
+    }
+
+    .settings-note {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #e5e7eb;
+      border-radius: 999px;
+      transition: 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      top: 3px;
+      background-color: #ffffff;
+      border-radius: 50%;
+      transition: 0.2s;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: var(--green);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(18px);
+    }
+
+    /* ================= NOTIFICATION SETTINGS PAGE ================= */
+
+    .notif-layout {
+      max-width: 700px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 20px;
+    }
+
+    .notif-header h2 {
+      font-size: 1.35rem;
+      margin-bottom: 4px;
+    }
+
+    .notif-header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .notif-card {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      padding: 16px 18px;
+    }
+
+    .notif-card-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .notif-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 0;
+      border-top: 1px solid #f3f4f6;
+    }
+
+    .notif-row:first-of-type {
+      border-top: none;
+    }
+
+    .notif-row-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .notif-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eff6ff;
+      color: #1d4ed8;
+      flex-shrink: 0;
+    }
+
+    .notif-label-main {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .notif-label-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .notif-checkbox {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .notif-sound-button {
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.8rem;
+      background: #f9fafb;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .notif-sound-button:hover {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      transform: translateY(-1px);
+    }
+
+    .notif-footer {
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .notif-footer-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .notif-reset-btn,
+    .notif-save-btn {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: #ffffff;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+
+    .notif-reset-btn:hover {
+      background: #f9fafb;
+      transform: translateY(-1px);
+    }
+
+    .notif-save-btn {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    .notif-save-btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    /* ================= MENTIONS PAGE ================= */
+
+    .mentions-layout {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 20px;
+    }
+
+    .mentions-header h2 {
+      font-size: 1.25rem;
+      margin-bottom: 4px;
+    }
+
+    .mentions-header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .mentions-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .mentions-tabs {
+      display: inline-flex;
+      background: #e5edff;
+      border-radius: 999px;
+      padding: 2px;
+    }
+
+    .mentions-tab-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.83rem;
+      cursor: pointer;
+      color: #4b5563;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .mentions-tab-btn.active {
+      background: #ffffff;
+      color: #111827;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+    }
+
+    .mentions-search {
+      position: relative;
+      width: 260px;
+      max-width: 50%;
+    }
+
+    .mentions-search input {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      padding: 7px 30px;
+      font-size: 0.85rem;
+      outline: none;
+      background: #f9fafb;
+    }
+
+    .mentions-search i {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    .mentions-list {
+      margin-top: 6px;
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+      overflow: hidden;
+    }
+
+    .mention-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      border-left: 3px solid #4f46e5;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .mention-item:last-child {
+      border-bottom: none;
+    }
+
+    .mention-left {
+      display: flex;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .mention-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background-size: cover;
+      background-position: center;
+      background-color: #e5e7eb;
+      flex-shrink: 0;
+    }
+
+    .mention-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .mention-title {
+      font-size: 0.9rem;
+      color: #111827;
+    }
+
+    .mention-room {
+      font-size: 0.82rem;
+      color: #6b7280;
+    }
+
+    .mention-text {
+      font-size: 0.86rem;
+      color: #374151;
+    }
+
+    .mention-tag {
+      background: #e0ebff;
+      border-radius: 999px;
+      padding: 1px 6px;
+      font-size: 0.78rem;
+      color: #1d4ed8;
+      font-weight: 500;
+    }
+
+    .mention-link {
+      margin-top: 2px;
+      border: none;
+      background: transparent;
+      font-size: 0.82rem;
+      color: #2563eb;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .mention-link:hover {
+      text-decoration: underline;
+    }
+
+    .mention-time {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      white-space: nowrap;
+      padding-top: 4px;
+    }
+
+    .mentions-empty {
+      padding: 16px 18px;
+      font-size: 0.87rem;
+      color: #6b7280;
+    }
+
+    /* ================= DRAFTS PAGE (NEW) ================= */
+
+    .drafts-layout {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .drafts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .drafts-header h2 {
+      font-size: 1.25rem;
+      margin-bottom: 2px;
+    }
+
+    .drafts-header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .drafts-header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .drafts-filter-input {
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      padding: 7px 12px;
+      font-size: 0.85rem;
+      outline: none;
+      background: #f9fafb;
+      min-width: 220px;
+    }
+
+    .drafts-filter-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+      background: #ffffff;
+    }
+
+    .drafts-new-btn {
+      border-radius: 999px;
+      border: none;
+      padding: 7px 12px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      background: #111827;
+      color: #ffffff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+    }
+
+    .drafts-new-btn i {
+      font-size: 0.85rem;
+    }
+
+    .drafts-new-btn:hover {
+      background: #020617;
+    }
+
+    .drafts-card {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+      padding: 12px 0;
+    }
+
+    .drafts-list-empty {
+      padding: 16px 18px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .draft-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 18px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .draft-item:last-child {
+      border-bottom: none;
+    }
+
+    .draft-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .draft-to {
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+      color: #4b5563;
+    }
+
+    .draft-to span {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .draft-body {
+      font-size: 0.9rem;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      margin-bottom: 4px;
+    }
+
+    .draft-meta {
+      font-size: 0.78rem;
+      color: #9ca3af;
+    }
+
+    .draft-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+      align-items: center;
+    }
+
+    .draft-edit-btn {
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: #f9fafb;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .draft-edit-btn i {
+      font-size: 0.8rem;
+    }
+
+    .draft-edit-btn:hover {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+    }
+
+    .draft-delete-btn {
+      border-radius: 999px;
+      border: 1px solid #fee2e2;
+      padding: 6px 9px;
+      font-size: 0.8rem;
+      background: #fef2f2;
+      color: #b91c1c;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .draft-delete-btn i {
+      font-size: 0.9rem;
+    }
+
+    .draft-delete-btn:hover {
+      background: #fee2e2;
+    }
+
+    /* ================= FILES PAGE (NEW) ================= */
+
+    .files-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .files-header {
+      margin-bottom: 4px;
+    }
+
+    .files-header h2 {
+      font-size: 1.25rem;
+      margin-bottom: 2px;
+    }
+
+    .files-header p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* Toolbar: Search + Dropdowns */
+    .files-toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .files-search {
+      flex: 1;
+      position: relative;
+    }
+
+    .files-search i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+
+    .files-search input {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 10px 10px 36px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .files-search input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .file-filter-select {
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      color: #374151;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .file-sort-btn {
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      color: #374151;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Files Table */
+    .files-card {
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden; /* rounds corners */
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .files-table-header {
+      display: grid;
+      grid-template-columns: 2.5fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr;
+      padding: 12px 20px;
+      background: #f9fafb;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .files-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .file-row {
+      display: grid;
+      grid-template-columns: 2.5fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr;
+      padding: 16px 20px;
+      align-items: center;
+      border-bottom: 1px solid #f3f4f6;
+      transition: background 0.1s;
+      font-size: 0.9rem;
+      color: #1f2937;
+    }
+
+    .file-row:last-child {
+      border-bottom: none;
+    }
+
+    .file-row:hover {
+      background: #f9fafb;
+    }
+
+    /* File Name Column */
+    .file-name-col {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+      color: #111827;
+    }
+
+    .file-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    /* Icon Variations */
+    .icon-pdf { background: #fee2e2; color: #dc2626; }
+    .icon-img { background: #dbeafe; color: #2563eb; }
+    .icon-zip { background: #f3e8ff; color: #9333ea; }
+    .icon-vid { background: #dcfce7; color: #16a34a; }
+    .icon-doc { background: #e0f2fe; color: #0284c7; }
+
+    /* Other Columns */
+    .file-location {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .file-location:hover {
+      text-decoration: underline;
+    }
+    
+    .file-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .file-action-btn {
+      border: none;
+      background: transparent;
+      color: #6b7280;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: color 0.2s;
+    }
+
+    .file-action-btn:hover {
+      color: #111827;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-wrapper" id="auth-screen">
+    <form class="auth-card" id="auth-form">
+      <div class="auth-title">
+        Welcome to <span>ChatApp</span>
+      </div>
+      <div class="auth-subtitle">
+        Login or sign up to enter your workspace.
+      </div>
+
+      <div class="auth-label">Username</div>
+      <div class="auth-input-wrap">
+        <i class="fa-regular fa-user"></i>
+        <input
+          type="text"
+          id="username-input"
+          class="auth-input"
+          placeholder="alex_morgan"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="auth-label">Password</div>
+      <div class="auth-input-wrap">
+        <i class="fa-solid fa-lock"></i>
+        <input
+          type="password"
+          id="password-input"
+          class="auth-input"
+          placeholder="********"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="status-text" id="auth-status"></div>
+
+      <div class="auth-buttons">
+        <button class="auth-button secondary" id="signup-btn" type="button">
+          <i class="fa-solid fa-user-plus"></i>
+          Sign up
+        </button>
+        <button class="auth-button primary" id="login-btn" type="submit">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          Login
+        </button>
+      </div>
+
+      <div class="auth-footer">
+        Your username and password are only used inside this demo chat.
+      </div>
+    </form>
+  </div>
+
+  <div class="workspace" id="workspace">
+    <aside class="ws-sidebar">
+      <div class="ws-sidebar-header">
+        <div class="ws-logo">C</div>
+        <div class="ws-workspace-titles">
+          <div class="ws-workspace-name">Workspace</div>
+          <div class="ws-workspace-sub">chat.io</div>
+        </div>
+      </div>
+
+      <div class="ws-nav-section-label">Main</div>
+      <ul class="ws-nav-list">
+        <li>
+          <button class="nav-item active" data-page="home">
+            <i class="fa-solid fa-house"></i>
+            Home
+          </button>
+        </li>
+        <li>
+          <button class="nav-item" data-page="chats">
+            <i class="fa-regular fa-message"></i>
+            All Chats
+          </button>
+        </li>
+        <li>
+          <button class="nav-item" data-page="mentions">
+            <i class="fa-regular fa-at"></i>
+            Mentions
+          </button>
+        </li>
+        <li>
+          <button class="nav-item" data-page="drafts">
+            <i class="fa-regular fa-file-lines"></i>
+            Drafts
+          </button>
+        </li>
+        <li>
+          <button class="nav-item" data-page="files">
+            <i class="fa-regular fa-folder"></i>
+            Files
+          </button>
+        </li>
+      </ul>
+
+      <div class="ws-sidebar-footer">
+        <button class="create-room-btn" type="button" id="create-room-btn">
+          <i class="fa-solid fa-plus"></i>
+          Create New Room
+        </button>
+
+        <button class="help-entry nav-item" type="button" data-page="help">
+          <i class="fa-regular fa-circle-question"></i>
+          Help
+        </button>
+      </div>
+    </aside>
+
+    <div class="ws-main">
+      <header class="ws-topbar">
+        <div class="ws-topbar-left">
+          <div class="topbar-app-name">Chat.io</div>
+          <div class="topbar-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search chats, people, files…" />
+          </div>
+        </div>
+        <div class="ws-topbar-right">
+          <button class="icon-btn" type="button" id="notifications-btn">
+            <i class="fa-regular fa-bell"></i>
+          </button>
+          <button class="icon-btn nav-item" type="button" data-page="settings">
+            <i class="fa-solid fa-gear"></i>
+          </button>
+          <button class="logout-top-btn" type="button" id="logout-btn">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span>Logout</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="ws-content" id="ws-content">
+        <section class="page active" id="page-home">
+          <div class="home-layout">
+            <div class="home-header">
+              <h1>Welcome back, <span id="welcome-name">Alex!</span></h1>
+              <p>Here’s a summary of what’s been happening while you were away.</p>
+            </div>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Recent Activity</div>
+                  <div class="card-subtitle">
+                    Latest messages from your channels.
+                  </div>
+                </div>
+                <span class="pill">Live</span>
+              </div>
+              <div class="activity-list" id="activity-list"></div>
+            </section>
+
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Quick Access</div>
+                  <div class="card-subtitle">
+                    Jump straight into your most used channels.
+                  </div>
+                </div>
+              </div>
+              <div class="qa-list">
+                <button class="qa-item" data-room="general">
+                  <span class="room-icon">
+                    <i class="fa-solid fa-hashtag"></i>
+                  </span>
+                  <div>
+                    <div style="font-size:0.86rem;font-weight:500;">
+                      #general
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);">
+                      Team-wide announcements and updates.
+                    </div>
+                  </div>
+                </button>
+
+                <button class="qa-item" data-room="development">
+                  <span class="room-icon">
+                    <i class="fa-solid fa-code"></i>
+                  </span>
+                  <div>
+                    <div style="font-size:0.86rem;font-weight:500;">
+                      #development
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);">
+                      Discuss features, bugs and deployments.
+                    </div>
+                  </div>
+                </button>
+
+                <button class="qa-item" data-room="design">
+                  <span class="room-icon">
+                    <i class="fa-solid fa-palette"></i>
+                  </span>
+                  <div>
+                    <div style="font-size:0.86rem;font-weight:500;">
+                      #design
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);">
+                      Share mockups and design feedback.
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" id="page-chats">
+          <div class="chats-layout">
+            <aside class="channels-panel" id="channels-panel">
+              <h3>Channels</h3>
+              <small>Select a room to start chatting.</small>
+
+              <button class="channel-btn active" data-room="general">
+                <i class="fa-solid fa-hashtag"></i> general
+              </button>
+              <button class="channel-btn" data-room="development">
+                <i class="fa-solid fa-code"></i> development
+              </button>
+              <button class="channel-btn" data-room="design">
+                <i class="fa-solid fa-palette"></i> design
+              </button>
+
+              <div id="custom-channels"></div>
+            </aside>
+
+            <section class="chat-panel">
+              <div class="chat-panel-header">
+                <div>
+                  <h2 id="chat-room-title"># general</h2>
+                  <div class="status">
+                    <i class="fa-solid fa-circle"></i>
+                    <span>Online</span>
+                  </div>
+                </div>
+              </div>
+
+              <div id="messages-list"></div>
+
+              <div class="chat-input-area">
+                <form id="chat-form" class="input-wrapper">
+                  <input
+                    type="text"
+                    id="msg-input"
+                    placeholder="Type your message here..."
+                    autocomplete="off"
+                  />
+                  <button type="submit" class="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                  </button>
+                </form>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page" id="page-mentions">
+          <div class="mentions-layout">
+            <div class="mentions-header">
+              <h2>Mentions</h2>
+              <p>See messages where someone mentioned you.</p>
+            </div>
+
+            <div class="mentions-toolbar">
+              <div class="mentions-tabs">
+                <button
+                  type="button"
+                  class="mentions-tab-btn active"
+                  data-mentions-tab="all"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  class="mentions-tab-btn"
+                  data-mentions-tab="unread"
+                >
+                  Unread
+                </button>
+              </div>
+
+              <div class="mentions-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input
+                  type="text"
+                  id="mentions-search"
+                  placeholder="Search mentions..."
+                />
+              </div>
+            </div>
+
+            <div class="mentions-list" id="mentions-list">
+              <div class="mentions-empty">No mentions yet.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-drafts">
+          <div class="drafts-layout">
+            <div class="drafts-header">
+              <div>
+                <h2>Drafts</h2>
+                <p>Save messages you’re not ready to send yet.</p>
+              </div>
+              <div class="drafts-header-actions">
+                <input
+                  type="text"
+                  id="drafts-filter-input"
+                  class="drafts-filter-input"
+                  placeholder="Filter drafts..."
+                />
+                <button type="button" id="drafts-new-btn" class="drafts-new-btn">
+                  <i class="fa-solid fa-plus"></i>
+                  New draft
+                </button>
+              </div>
+            </div>
+
+            <div class="drafts-card">
+              <div id="drafts-list">
+                <div class="drafts-list-empty">No drafts yet.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-files">
+          <div class="files-layout">
+            <div class="files-header">
+              <h2>Files</h2>
+              <p>Access all shared files from your channels and direct messages.</p>
+            </div>
+
+            <div class="files-toolbar">
+              <div class="files-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input 
+                  type="text" 
+                  id="files-search-input" 
+                  placeholder="Search files by name..." 
+                />
+              </div>
+              
+              <select class="file-filter-select">
+                <option>All File Types</option>
+                <option>Documents</option>
+                <option>Images</option>
+                <option>Archives</option>
+              </select>
+
+              <select class="file-filter-select">
+                <option>All Channels & DMs</option>
+                <option>#general</option>
+                <option>#design-team</option>
+              </select>
+
+              <button class="file-sort-btn">
+                <i class="fa-solid fa-arrow-down-short-wide"></i>
+                Sort by: Date
+              </button>
+            </div>
+
+            <div class="files-card">
+              <div class="files-table-header">
+                <div>File Name</div>
+                <div>Shared By</div>
+                <div>Location</div>
+                <div>Date Shared</div>
+                <div>Size</div>
+                <div style="text-align:right;">Actions</div>
+              </div>
+
+              <div class="files-list" id="files-list-container">
+                </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-help">
+          <div class="help-layout">
+            <div class="help-header">
+              <h2>Help Desk</h2>
+              <p>Find answers and get support from your team.</p>
+            </div>
+
+            <div class="help-grid">
+              <div class="help-card" data-help="faq">
+                <div class="help-icon">
+                  <i class="fa-regular fa-circle-question"></i>
+                </div>
+                <div>
+                  <div class="help-card-title">Frequently Asked Questions</div>
+                  <div class="help-card-text">
+                    Find quick answers to common questions.
+                  </div>
+                </div>
+              </div>
+
+              <div class="help-card" data-help="contact">
+                <div class="help-icon">
+                  <i class="fa-regular fa-comments"></i>
+                </div>
+                <div>
+                  <div class="help-card-title">Contact Support</div>
+                  <div class="help-card-text">
+                    Get in touch with the support team.
+                  </div>
+                </div>
+              </div>
+
+              <div class="help-card" data-help="bug">
+                <div class="help-icon">
+                  <i class="fa-solid fa-bug"></i>
+                </div>
+                <div>
+                  <div class="help-card-title">Report a Bug</div>
+                  <div class="help-card-text">
+                    Let us know about an issue you’ve found.
+                  </div>
+                </div>
+              </div>
+
+              <div class="help-card" data-help="guides">
+                <div class="help-icon">
+                  <i class="fa-regular fa-book-open"></i>
+                </div>
+                <div>
+                  <div class="help-card-title">User Guides & Tutorials</div>
+                  <div class="help-card-text">
+                    Learn how to use the application.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="help-detail" id="help-detail">
+              <h3>How can we help?</h3>
+              <p>
+                Select any card above to see more details, quick tips and actions.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-notifications">
+          <div class="notif-layout">
+            <div class="notif-header">
+              <h2>Notification Settings</h2>
+              <p>Master control for all notifications in the application.</p>
+            </div>
+
+            <div class="notif-card">
+              <div class="notif-row">
+                <div class="notif-row-left">
+                  <div>
+                    <div class="notif-label-main">Enable Notifications</div>
+                    <div class="notif-label-sub">
+                      Master control for all notifications in the application.
+                    </div>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notif-enable" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="notif-card">
+              <div class="notif-card-title">General Notifications</div>
+
+              <div class="notif-row">
+                <div class="notif-row-left">
+                  <div class="notif-icon">
+                    <i class="fa-regular fa-desktop"></i>
+                  </div>
+                  <div>
+                    <div class="notif-label-main">Desktop Notifications</div>
+                    <div class="notif-label-sub">
+                      Show a native desktop notification when the app is in the background.
+                    </div>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notif-desktop" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="notif-row">
+                <div class="notif-row-left">
+                  <div class="notif-icon">
+                    <i class="fa-regular fa-circle-info"></i>
+                  </div>
+                  <div>
+                    <div class="notif-label-main">In-app Alerts</div>
+                    <div class="notif-label-sub">
+                      Display banners or badges for new activity inside the application.
+                    </div>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notif-inapp" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="notif-card">
+              <div class="notif-card-title">Sound &amp; Visual Alerts</div>
+
+              <div class="notif-row">
+                <div class="notif-row-left">
+                  <div class="notif-icon">
+                    <i class="fa-solid fa-volume-high"></i>
+                  </div>
+                  <div>
+                    <div class="notif-label-main">Play sound for new messages</div>
+                    <div class="notif-label-sub">
+                      Play an audio cue when a new notification arrives.
+                    </div>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notif-sound" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="notif-row">
+                <div class="notif-row-left">
+                  <div class="notif-icon">
+                    <i class="fa-regular fa-music"></i>
+                  </div>
+                  <div>
+                    <div class="notif-label-main">Notification Sound</div>
+                    <div class="notif-label-sub">
+                      Choose the sound to play for new notifications.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  class="notif-sound-button"
+                  type="button"
+                  id="notif-sound-default"
+                >
+                  Default
+                </button>
+              </div>
+            </div>
+
+            <div class="notif-card">
+              <div class="notif-card-title">Specific Event Notifications</div>
+
+              <div class="notif-row">
+                <div class="notif-row-left">
+                  <input
+                    type="checkbox"
+                    class="notif-checkbox"
+                    id="notif-event-dm"
+                  />
+                  <div>
+                    <div class="notif-label-main">Direct Messages</div>
+                    <div class="notif-label-sub">
+                      Notify me when I receive a direct message.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="notif-row">
+                <div class="notif-row-left">
+                  <input
+                    type="checkbox"
+                    class="notif-checkbox"
+                    id="notif-event-mention"
+                  />
+                  <div>
+                    <div class="notif-label-main">Mentions</div>
+                    <div class="notif-label-sub">
+                      Notify me when someone mentions me with @username or @channel.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="notif-row">
+                <div class="notif-row-left">
+                  <input
+                    type="checkbox"
+                    class="notif-checkbox"
+                    id="notif-event-room"
+                  />
+                  <div>
+                    <div class="notif-label-main">New Messages in Rooms</div>
+                    <div class="notif-label-sub">
+                      Notify me about any new message in rooms I'm a part of.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="notif-footer">
+              <span>These preferences are stored only on this browser for your account.</span>
+              <div class="notif-footer-buttons">
+                <button
+                  type="button"
+                  class="notif-reset-btn"
+                  id="notif-reset"
+                >
+                  Reset to Default
+                </button>
+                <button
+                  type="button"
+                  class="notif-save-btn"
+                  id="notif-save"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-settings">
+          <div class="settings-layout">
+            <div class="settings-header">
+              <h2>Settings</h2>
+              <p>Manage your profile and application settings.</p>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-section-title">User Profile</div>
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div class="settings-avatar" id="settings-avatar">
+                    <span id="settings-avatar-initial">A</span>
+                  </div>
+                  <div>
+                    <div class="settings-label-main">Username</div>
+                    <div class="settings-label-sub" id="settings-username">
+                      alex_morgan
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <button
+                    class="settings-small-button primary"
+                    type="button"
+                    id="change-avatar-btn"
+                  >
+                    <i class="fa-regular fa-image"></i>
+                    Change Avatar
+                  </button>
+                  <input
+                    type="file"
+                    id="avatar-input"
+                    accept="image/*"
+                    style="display:none;"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-section-title">Account Settings</div>
+
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div>
+                    <div class="settings-label-main">Email Address</div>
+                    <div class="settings-label-sub">
+                      Used for account recovery and notifications.
+                    </div>
+                  </div>
+                </div>
+                <input
+                  type="email"
+                  id="settings-email"
+                  class="settings-mini-input"
+                  placeholder="alex.morgan@example.com"
+                />
+              </div>
+
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div>
+                    <div class="settings-label-main">Password</div>
+                    <div class="settings-label-sub">
+                      Change your login password.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  class="settings-small-button"
+                  type="button"
+                  id="change-password-btn"
+                >
+                  Change Password
+                </button>
+              </div>
+
+              <div class="settings-note">
+                In this demo project, passwords are still handled on the backend.
+                This button shows where the feature lives in the UI without
+                changing your existing server code.
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-section-title">Notification Preferences</div>
+
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div>
+                    <div class="settings-label-main">Desktop Notifications</div>
+                    <div class="settings-label-sub">
+                      Get native browser notifications for new messages.
+                    </div>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggle-desktop" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div>
+                    <div class="settings-label-main">Sound Notifications</div>
+                    <div class="settings-label-sub">
+                      Play a sound when a new message arrives.
+                    </div>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggle-sound" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-section-title">Privacy &amp; Security</div>
+
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div>
+                    <div class="settings-label-main">
+                      Allow Direct Messages from anyone
+                    </div>
+                    <div class="settings-label-sub">
+                      When off, only people you approve can DM you (UI setting for
+                      this demo).
+                    </div>
+                  </div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggle-dms" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div>
+                    <div class="settings-label-main">Manage Blocked Users</div>
+                    <div class="settings-label-sub">
+                      View or edit the list of users you have blocked.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  class="settings-small-button"
+                  type="button"
+                  id="manage-blocked-btn"
+                >
+                  Manage Blocked Users
+                </button>
+              </div>
+
+              <div class="settings-note">
+                All settings are saved locally in your browser per username, so
+                they do not modify the backend database.
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    const socket = io();
+
+    /* ---------- AUTH ELEMENTS ---------- */
+    const authScreen     = document.getElementById("auth-screen");
+    const authForm       = document.getElementById("auth-form");
+    const usernameInput  = document.getElementById("username-input");
+    const passwordInput  = document.getElementById("password-input");
+    const authStatus     = document.getElementById("auth-status");
+    const signupBtn      = document.getElementById("signup-btn");
+    const loginBtn       = document.getElementById("login-btn");
+
+    /* ---------- WORKSPACE ELEMENTS ---------- */
+    const workspace      = document.getElementById("workspace");
+    const welcomeNameEl  = document.getElementById("welcome-name");
+    const logoutBtn      = document.getElementById("logout-btn");
+    const createRoomBtn  = document.getElementById("create-room-btn");
+    const wsContent      = document.getElementById("ws-content");
+    const notificationsBtn = document.getElementById("notifications-btn");
+
+    const navButtons = document.querySelectorAll(".nav-item[data-page]");
+    const pages      = document.querySelectorAll(".page");
+
+    /* ---------- CHAT ELEMENTS ---------- */
+    const messagesList   = document.getElementById("messages-list");
+    const chatForm       = document.getElementById("chat-form");
+    const msgInput       = document.getElementById("msg-input");
+    const chatRoomTitle  = document.getElementById("chat-room-title");
+    const qaButtons      = document.querySelectorAll(".qa-item[data-room]");
+    const activityList   = document.getElementById("activity-list");
+    const channelsPanel  = document.getElementById("channels-panel");
+    const customChannelsContainer = document.getElementById("custom-channels");
+
+    /* ---------- HELP DESK ---------- */
+    const helpCards      = document.querySelectorAll(".help-card");
+    const helpDetail     = document.getElementById("help-detail");
+
+    /* ---------- SETTINGS ELEMENTS ---------- */
+    const settingsUsernameEl      = document.getElementById("settings-username");
+    const settingsAvatarEl        = document.getElementById("settings-avatar");
+    const settingsAvatarInitialEl = document.getElementById("settings-avatar-initial");
+    const changeAvatarBtn         = document.getElementById("change-avatar-btn");
+    const avatarInputEl           = document.getElementById("avatar-input");
+    const settingsEmailInput      = document.getElementById("settings-email");
+    const desktopToggle           = document.getElementById("toggle-desktop");
+    const soundToggle             = document.getElementById("toggle-sound");
+    const dmsToggle               = document.getElementById("toggle-dms");
+    const manageBlockedBtn        = document.getElementById("manage-blocked-btn");
+    const changePasswordBtn       = document.getElementById("change-password-btn");
+
+    /* ---------- NOTIFICATION SETTINGS ELEMENTS ---------- */
+    const notifEnableMaster   = document.getElementById("notif-enable");
+    const notifDesktopToggle  = document.getElementById("notif-desktop");
+    const notifInAppToggle    = document.getElementById("notif-inapp");
+    const notifSoundToggle    = document.getElementById("notif-sound");
+    const notifSoundDefault   = document.getElementById("notif-sound-default");
+    const notifEventDM        = document.getElementById("notif-event-dm");
+    const notifEventMention   = document.getElementById("notif-event-mention");
+    const notifEventRoom      = document.getElementById("notif-event-room");
+    const notifSaveBtn        = document.getElementById("notif-save");
+    const notifResetBtn       = document.getElementById("notif-reset");
+
+    /* ---------- MENTIONS ELEMENTS ---------- */
+    const mentionsListEl      = document.getElementById("mentions-list");
+    const mentionsSearchInput = document.getElementById("mentions-search");
+    const mentionsTabButtons  = document.querySelectorAll(".mentions-tab-btn");
+
+    /* ---------- DRAFTS ELEMENTS (NEW) ---------- */
+    const draftsListEl        = document.getElementById("drafts-list");
+    const draftsFilterInput   = document.getElementById("drafts-filter-input");
+    const draftsNewBtn        = document.getElementById("drafts-new-btn");
+
+    /* ---------- FILES ELEMENTS (ADDED) ---------- */
+    const filesContainer = document.getElementById("files-list-container");
+    const filesSearchInput = document.getElementById("files-search-input");
+
+    let currentRoom = "general";
+    let username    = null;
+    let userSettings = null;
+
+    const defaultRooms = ["general", "development", "design"];
+    let customRooms = [];
+
+    // mentions data
+    let mentions = [];
+    let mentionsLoaded = false;
+    let currentMentionsFilter = "all";
+
+    // drafts data
+    let drafts = [];
+    let draftsLoaded = false;
+
+    // Files Data (Matching Image)
+    const filesData = [
+      {
+        id: 1,
+        name: "Q3_Financial_Report.pdf",
+        type: "pdf",
+        sharedBy: "Alice Johnson",
+        location: "general",
+        date: "Oct 26, 2023",
+        size: "1.2 MB",
+        url: "data:application/pdf;base64,JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZSAvQ2F0YWxvZwogIC9QYWdlcyAyIDAgUgo+PgplbmRvYmoKCjIgMCBvYmogICU..."
+      },
+      {
+        id: 2,
+        name: "new_logo_concept_v3.png",
+        type: "img",
+        sharedBy: "Bob Williams",
+        location: "design",
+        date: "Oct 25, 2023",
+        size: "860 KB",
+        url: "https://via.placeholder.com/600x400.png?text=Logo+Concept+V3"
+      },
+      {
+        id: 3,
+        name: "Project_Assets.zip",
+        type: "zip",
+        sharedBy: "Charlie Brown",
+        location: "development",
+        date: "Oct 24, 2023",
+        size: "24.5 MB",
+        url: "#"
+      },
+      {
+        id: 4,
+        name: "Onboarding_Tutorial.mp4",
+        type: "vid",
+        sharedBy: "Alice Johnson",
+        location: "general",
+        date: "Oct 22, 2023",
+        size: "150.3 MB",
+        url: "#"
+      },
+      {
+        id: 5,
+        name: "Meeting_Notes_Oct19.docx",
+        type: "doc",
+        sharedBy: "Diana Prince",
+        location: "development",
+        date: "Oct 19, 2023",
+        size: "45 KB",
+        url: "data:text/plain;charset=utf-8,Meeting%20Notes%20Demo"
+      }
+    ];
+
+    let notificationSound = null;
+    try {
+      notificationSound = new Audio(
+        "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+      );
+    } catch (e) {
+      notificationSound = null;
+    }
+
+    const DEFAULT_SETTINGS = {
+      email: "",
+      desktopNotifications: true,
+      soundNotifications: true,
+      allowDMs: true,
+      blockedUsers: [],
+      avatarDataUrl: null,
+      enableNotifications: true,
+      inAppAlerts: false,
+      eventDMs: true,
+      eventMentions: true,
+      eventRoomMessages: true,
+      mentionsLastSeen: 0
+    };
+
+    /* ---------- SETTINGS STORAGE HELPERS ---------- */
+    function getSettingsKeyForUser(user) {
+      if (!user) return null;
+      return "chat_settings_" + user;
+    }
+
+    function getRoomsKeyForUser(user) {
+      if (!user) return null;
+      return "chat_custom_rooms_" + user;
+    }
+
+    function getDraftsKeyForUser(user) {
+      if (!user) return null;
+      return "chat_drafts_" + user;
+    }
+
+    function loadSettingsForCurrentUser() {
+      if (!username) return;
+      const key = getSettingsKeyForUser(username);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          userSettings = JSON.parse(raw);
+        } catch {
+          userSettings = null;
+        }
+      }
+      if (!userSettings) {
+        userSettings = { ...DEFAULT_SETTINGS };
+      } else {
+        userSettings = { ...DEFAULT_SETTINGS, ...userSettings };
+      }
+    }
+
+    function saveSettingsForCurrentUser() {
+      if (!username || !userSettings) return;
+      const key = getSettingsKeyForUser(username);
+      localStorage.setItem(key, JSON.stringify(userSettings));
+    }
+
+    function loadCustomRoomsForCurrentUser() {
+      if (!username) return;
+      const key = getRoomsKeyForUser(username);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          customRooms = JSON.parse(raw) || [];
+        } catch {
+          customRooms = [];
+        }
+      } else {
+        customRooms = [];
+      }
+    }
+
+    function saveCustomRoomsForCurrentUser() {
+      if (!username) return;
+      const key = getRoomsKeyForUser(username);
+      localStorage.setItem(key, JSON.stringify(customRooms));
+    }
+
+    /* ---------- DRAFTS STORAGE HELPERS ---------- */
+    function loadDraftsForCurrentUser() {
+      if (!username) return;
+      const key = getDraftsKeyForUser(username);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          drafts = JSON.parse(raw) || [];
+        } catch {
+          drafts = [];
+        }
+      } else {
+        drafts = [];
+      }
+
+      // Seed example drafts once for new users (for demo UI)
+      if (!drafts.length) {
+        const now = new Date();
+        drafts = [
+          {
+            id: "seed-1",
+            to: "Product Team",
+            body:
+              "Hey team, just wanted to follow up on the Q3 roadmap discussion. I’ve put together some initial thoughts on…",
+            updatedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            id: "seed-2",
+            to: "Jane Doe",
+            body:
+              "About the meeting tomorrow, are you able to join 15 minutes earlier? I wanted to quickly sync up before the main call.",
+            updatedAt: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            id: "seed-3",
+            to: "#marketing-campaign",
+            body:
+              "Here’s the link to the final creative assets for the summer campaign: [link]",
+            updatedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        ];
+        saveDraftsForCurrentUser();
+      }
+    }
+
+    function saveDraftsForCurrentUser() {
+      if (!username) return;
+      const key = getDraftsKeyForUser(username);
+      localStorage.setItem(key, JSON.stringify(drafts));
+    }
+
+    function initDraftsForUser() {
+      if (!username || draftsLoaded) return;
+      loadDraftsForCurrentUser();
+      draftsLoaded = true;
+      renderDraftsList();
+    }
+
+    /* ---------- COMMON HELPERS ---------- */
+
+    function buildChannelButtonElement(roomName) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "channel-btn";
+      btn.setAttribute("data-room", roomName);
+      btn.innerHTML = `<i class="fa-solid fa-hashtag"></i> ${roomName}`;
+      return btn;
+    }
+
+    function renderCustomRooms() {
+      if (!customChannelsContainer) return;
+      customChannelsContainer.innerHTML = "";
+      customRooms.forEach((room) => {
+        const btn = buildChannelButtonElement(room);
+        customChannelsContainer.appendChild(btn);
+      });
+    }
+
+    function applySettingsToUI() {
+      if (!username || !userSettings) return;
+
+      settingsUsernameEl.textContent = username;
+      const initial = username.charAt(0).toUpperCase();
+      settingsAvatarInitialEl.textContent = initial;
+
+      if (userSettings.avatarDataUrl) {
+        settingsAvatarEl.style.backgroundImage =
+          "url('" + userSettings.avatarDataUrl + "')";
+      } else {
+        settingsAvatarEl.style.backgroundImage = "";
+      }
+
+      settingsEmailInput.value = userSettings.email || "";
+      desktopToggle.checked = !!userSettings.desktopNotifications;
+      soundToggle.checked   = !!userSettings.soundNotifications;
+      dmsToggle.checked     = !!userSettings.allowDMs;
+
+      applyNotifPageFromSettings();
+    }
+
+    function applyNotifPageFromSettings() {
+      if (!userSettings) return;
+
+      notifEnableMaster.checked = userSettings.enableNotifications !== false;
+      notifDesktopToggle.checked = !!userSettings.desktopNotifications;
+      notifInAppToggle.checked   = !!userSettings.inAppAlerts;
+      notifSoundToggle.checked   = !!userSettings.soundNotifications;
+      notifEventDM.checked       = !!userSettings.eventDMs;
+      notifEventMention.checked  = !!userSettings.eventMentions;
+      notifEventRoom.checked     = !!userSettings.eventRoomMessages;
+
+      const disabled = !notifEnableMaster.checked;
+      [
+        notifDesktopToggle,
+        notifInAppToggle,
+        notifSoundToggle,
+        notifEventDM,
+        notifEventMention,
+        notifEventRoom,
+        notifSoundDefault,
+      ].forEach((el) => {
+        if (!el) return;
+        el.disabled = disabled;
+      });
+    }
+
+    function initCustomRoomsForUser() {
+      loadCustomRoomsForCurrentUser();
+      renderCustomRooms();
+    }
+
+    function initSettingsForUser() {
+      if (!username) return;
+      loadSettingsForCurrentUser();
+      applySettingsToUI();
+      initCustomRoomsForUser();
+      mentionsLoaded = false;
+      mentions = [];
+      draftsLoaded = false;
+      drafts = [];
+    }
+
+    /* ---------- FILES PAGE LOGIC (ADDED) ---------- */
+    function getFileIcon(type) {
+      switch(type) {
+        case 'pdf': return '<div class="file-icon icon-pdf"><i class="fa-solid fa-file-pdf"></i></div>';
+        case 'img': return '<div class="file-icon icon-img"><i class="fa-regular fa-image"></i></div>';
+        case 'zip': return '<div class="file-icon icon-zip"><i class="fa-solid fa-file-zipper"></i></div>';
+        case 'vid': return '<div class="file-icon icon-vid"><i class="fa-solid fa-film"></i></div>';
+        case 'doc': return '<div class="file-icon icon-doc"><i class="fa-regular fa-file-lines"></i></div>';
+        default:    return '<div class="file-icon"><i class="fa-regular fa-file"></i></div>';
+      }
+    }
+
+    function renderFilesPage() {
+      if (!filesContainer) return;
+
+      const q = (filesSearchInput.value || "").toLowerCase();
+      
+      const filtered = filesData.filter(f => 
+        f.name.toLowerCase().includes(q) || 
+        f.sharedBy.toLowerCase().includes(q)
+      );
+
+      filesContainer.innerHTML = "";
+
+      if (filtered.length === 0) {
+        filesContainer.innerHTML = '<div style="padding:20px; color:#6b7280;">No files found matching your search.</div>';
+        return;
+      }
+
+      filtered.forEach(file => {
+        const row = document.createElement("div");
+        row.className = "file-row"; 
+        // Location formatting (add hash if needed)
+        const displayLocation = file.location.includes("(DM)") ? file.location : "#" + file.location;
+
+        row.innerHTML = `
+          <div class="file-name-col">
+            ${getFileIcon(file.type)}
+            <span style="font-weight:600;">${file.name}</span>
+          </div>
+          <div style="font-size:0.9rem;">${file.sharedBy}</div>
+          <div><a href="#" class="file-location">${displayLocation}</a></div>
+          <div style="font-size:0.85rem; color:#6b7280;">${file.date}</div>
+          <div style="font-size:0.85rem; color:#6b7280;">${file.size}</div>
+          <div class="file-actions">
+            <button class="file-action-btn download-trigger" title="Download"><i class="fa-solid fa-download"></i></button>
+            <button class="file-action-btn preview-trigger" title="Preview"><i class="fa-regular fa-eye"></i></button>
+            <button class="file-action-btn chat-trigger" title="Discuss"><i class="fa-regular fa-comment"></i></button>
+          </div>
+        `;
+// ###################################################################################################################3
+        // Add Event Listeners for actions
+        const downloadBtn = row.querySelector('.download-trigger');
+        downloadBtn.addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.href = file.url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        const previewBtn = row.querySelector('.preview-trigger');
+        previewBtn.addEventListener('click', () => {
+            window.open(file.url, '_blank');
+        });
+
+        const chatBtn = row.querySelector('.chat-trigger');
+        chatBtn.addEventListener('click', async () => {
+            // Remove (DM) from location string if present for logic
+            const rawRoom = file.location.replace(" (DM)", "").toLowerCase();
+            
+            // Switch to chat page
+            await openRoom(rawRoom);
+            showPage("chats");
+            
+            // Pre-fill input
+            if(msgInput) {
+                msgInput.value = `Hey, checking out this file: ${file.name}`;
+                msgInput.focus();
+            }
+        });
+
+        filesContainer.appendChild(row);
+      });
+    }
+// ################################################################################################################
+    if (filesSearchInput) {
+      filesSearchInput.addEventListener("input", renderFilesPage);
+    }
+
+    /* ---------- UTIL: SHOW PAGE ---------- */
+    function showPage(name) {
+      pages.forEach((p) => {
+        p.classList.toggle("active", p.id === "page-" + name);
+      });
+
+      navButtons.forEach((btn) => {
+        const page = btn.getAttribute("data-page");
+        btn.classList.toggle("active", page === name);
+      });
+
+      if (name === "chats" && username) {
+        openRoom(currentRoom);
+      }
+
+      if (name === "home" && username) {
+        loadRecentActivity();
+      }
+
+      if (name === "mentions" && username) {
+        if (!mentionsLoaded) {
+          buildInitialMentions();
+        } else {
+          renderMentions();
+        }
+        if (userSettings) {
+          userSettings.mentionsLastSeen = Date.now();
+          saveSettingsForCurrentUser();
+        }
+      }
+
+      if (name === "drafts" && username) {
+        initDraftsForUser();
+        renderDraftsList();
+      }
+
+      if (name === "files" && username) {
+        renderFilesPage();
+      }
+
+      if (wsContent) wsContent.scrollTop = 0;
+    }
+
+    /* ---------- SOCKET ROOM JOIN ---------- */
+    function joinRoom(room, user) {
+      return new Promise((resolve) => {
+        socket.emit("join", { username: user, room }, (res) => {
+          resolve(res || { ok: true });
+        });
+      });
+    }
+
+    /* ---------- LOAD MESSAGES ---------- */
+    async function loadMessages(room) {
+      if (!messagesList) return;
+      messagesList.innerHTML =
+        '<div class="system">Loading messages...</div>';
+
+      try {
+        const res = await fetch(`/api/messages/${room}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          messagesList.innerHTML =
+            '<div class="system" style="color:#ef4444;">Server error: ' +
+            (data.error || res.status) +
+            "</div>";
+          return;
+        }
+
+        if (!Array.isArray(data)) {
+          messagesList.innerHTML =
+            '<div class="system" style="color:#ef4444;">Unexpected data from server</div>';
+          return;
+        }
+
+        messagesList.innerHTML = "";
+        data.forEach((m) => {
+          appendMessage(m.senderName, m.text, m.createdAt);
+        });
+
+        messagesList.scrollTop = messagesList.scrollHeight;
+      } catch {
+        messagesList.innerHTML =
+          '<div class="system" style="color:#ef4444;">Could not load messages</div>';
+      }
+    }
+
+    /* ---------- HOME RECENT ACTIVITY ---------- */
+    async function loadRecentActivity() {
+      if (!activityList) return;
+
+      activityList.innerHTML =
+        '<div class="system" style="text-align:left;">Loading recent activity…</div>';
+
+      try {
+        const res = await fetch(`/api/messages/general`);
+        const data = await res.json();
+
+        if (!res.ok || !Array.isArray(data)) {
+          activityList.innerHTML =
+            '<div class="system" style="text-align:left;color:#ef4444;">Could not load activity</div>';
+          return;
+        }
+
+        const latest = data.slice(-4).reverse();
+        if (!latest.length) {
+          activityList.innerHTML =
+            '<div class="system" style="text-align:left;">No recent messages yet. Start a conversation in #general.</div>';
+          return;
+        }
+
+        activityList.innerHTML = "";
+        latest.forEach((m) => {
+          const item = document.createElement("div");
+          item.className = "activity-item";
+
+          const icon = document.createElement("div");
+          icon.className = "activity-icon";
+          icon.innerHTML = '<i class="fa-solid fa-hashtag"></i>';
+
+          const content = document.createElement("div");
+          content.className = "activity-content";
+
+          const title = document.createElement("div");
+          title.className = "activity-title";
+          title.textContent = `${m.senderName} in #${m.room || "general"}`;
+
+          const meta = document.createElement("div");
+          meta.className = "activity-meta";
+          meta.textContent = `"${m.text}"`;
+
+          content.appendChild(title);
+          content.appendChild(meta);
+
+          const time = document.createElement("div");
+          time.className = "activity-time";
+          const d = m.createdAt ? new Date(m.createdAt) : new Date();
+          time.textContent = d.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          item.appendChild(icon);
+          item.appendChild(content);
+          item.appendChild(time);
+
+          activityList.appendChild(item);
+        });
+      } catch {
+        activityList.innerHTML =
+          '<div class="system" style="text-align:left;color:#ef4444;">Network error while loading activity.</div>';
+      }
+    }
+
+    /* ---------- MESSAGE RENDERING ---------- */
+    function appendMessage(senderName, text, createdAt) {
+      const isMine = senderName === username;
+
+      const row = document.createElement("div");
+      row.className = "message-row " + (isMine ? "sent" : "received");
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+
+      if (userSettings && userSettings.avatarDataUrl && isMine) {
+        avatar.style.backgroundImage =
+          "url('" + userSettings.avatarDataUrl + "')";
+      } else {
+        avatar.style.backgroundImage =
+          "url('https://ui-avatars.com/api/?background=random&name=" +
+          encodeURIComponent(senderName) +
+          "')";
+      }
+
+      const group = document.createElement("div");
+      group.className = "bubble-group";
+
+      const nameDiv = document.createElement("div");
+      nameDiv.className = "sender-name";
+      nameDiv.textContent = senderName;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+
+      let html = text
+        .replace(
+          /(https?:\/\/[^\s]+)/g,
+          '<a href="$1" target="_blank">$1</a>'
+        )
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>");
+
+      bubble.innerHTML = html;
+
+      const timeDiv = document.createElement("div");
+      timeDiv.className = "time";
+      const d = createdAt ? new Date(createdAt) : new Date();
+      timeDiv.textContent = d.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      bubble.appendChild(timeDiv);
+      group.appendChild(nameDiv);
+      group.appendChild(bubble);
+
+      row.appendChild(avatar);
+      row.appendChild(group);
+
+      messagesList.appendChild(row);
+      messagesList.scrollTop = messagesList.scrollHeight;
+    }
+
+    function appendSystem(text, createdAt) {
+      const div = document.createElement("div");
+      div.className = "system";
+      const d = createdAt ? new Date(createdAt) : new Date();
+      div.textContent =
+        text +
+        " · " +
+        d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      messagesList.appendChild(div);
+      messagesList.scrollTop = messagesList.scrollHeight;
+    }
+
+    /* ---------- OPEN ROOM ---------- */
+    async function openRoom(room) {
+      currentRoom = room;
+      chatRoomTitle.textContent = "# " + room;
+
+      document
+        .querySelectorAll(".channel-btn[data-room]")
+        .forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.room === room);
+        });
+
+      if (username) {
+        socket.emit("join", { username, room });
+        await loadMessages(room);
+      }
+    }
+
+    /* ---------- AUTH ---------- */
+    async function handleAuth(mode) {
+      const name = usernameInput.value.trim();
+      const pass = passwordInput.value.trim();
+
+      authStatus.textContent = "";
+      authStatus.className = "status-text";
+
+      if (!name || !pass) {
+        authStatus.textContent = "Please enter username and password.";
+        authStatus.classList.add("error");
+        return;
+      }
+
+      signupBtn.disabled = true;
+      loginBtn.disabled  = true;
+      authStatus.textContent = "Please wait...";
+      authStatus.className = "status-text";
+
+      const url = mode === "signup" ? "/api/signup" : "/api/login";
+
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: name, password: pass }),
+        });
+
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error("Server did not return JSON");
+        }
+
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Server error");
+        }
+
+        username = data.username || name;
+        localStorage.setItem("chat_username", username);
+
+        welcomeNameEl.textContent = username + "!";
+
+        authStatus.classList.add("success");
+        authStatus.textContent =
+          mode === "signup"
+            ? "Account created and logged in!"
+            : "Logged in as " + username + ".";
+
+        authScreen.style.display = "none";
+        workspace.classList.add("visible");
+
+        initSettingsForUser();
+        initDraftsForUser();
+
+        await joinRoom(currentRoom, username);
+        await loadMessages(currentRoom);
+        await loadRecentActivity();
+        showPage("home");
+      } catch (err) {
+        authStatus.textContent =
+          "Network / server error: " + (err.message || "Unknown error");
+        authStatus.classList.add("error");
+      } finally {
+        signupBtn.disabled = false;
+        loginBtn.disabled  = false;
+      }
+    }
+
+    authForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      handleAuth("login");
+    });
+
+    signupBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      handleAuth("signup");
+    });
+
+    usernameInput.addEventListener("input", () => {
+      authStatus.textContent = "";
+      authStatus.className = "status-text";
+    });
+
+    passwordInput.addEventListener("input", () => {
+      authStatus.textContent = "";
+      authStatus.className = "status-text";
+    });
+
+    /* ---------- LOGOUT ---------- */
+    function logoutUser() {
+      if (username) {
+        socket.emit("logout", { username });
+      }
+      localStorage.removeItem("chat_username");
+      username = null;
+      userSettings = null;
+      customRooms = [];
+      mentions = [];
+      drafts = [];
+      mentionsLoaded = false;
+      draftsLoaded = false;
+
+      workspace.classList.remove("visible");
+      authScreen.style.display = "flex";
+      authStatus.textContent = "";
+      authStatus.className = "status-text";
+      passwordInput.value = "";
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", logoutUser);
+    }
+
+    /* ---------- NAV / PAGE ---------- */
+    navButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const page = btn.getAttribute("data-page");
+        showPage(page);
+      });
+    });
+
+    if (notificationsBtn) {
+      notificationsBtn.addEventListener("click", () => {
+        showPage("notifications");
+      });
+    }
+
+    /* ---------- CHANNEL CLICK (delegation) ---------- */
+    if (channelsPanel) {
+      channelsPanel.addEventListener("click", async (e) => {
+        const btn = e.target.closest(".channel-btn[data-room]");
+        if (!btn) return;
+        const room = btn.dataset.room;
+        if (!room || room === currentRoom) return;
+        await openRoom(room);
+        showPage("chats");
+      });
+    }
+
+    /* ---------- QUICK ACCESS ---------- */
+    qaButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const room = btn.dataset.room;
+        await openRoom(room);
+        showPage("chats");
+      });
+    });
+
+    /* ---------- CREATE NEW ROOM ---------- */
+    if (createRoomBtn) {
+      createRoomBtn.addEventListener("click", async () => {
+        if (!username) {
+          alert("Please login first.");
+          return;
+        }
+        let room = prompt(
+          "Enter a new room name (example: project-ideas):",
+          "new-room"
+        );
+        if (!room) return;
+        room = room.trim().toLowerCase().replace(/\s+/g, "-");
+        if (!room) {
+          alert("Room name cannot be empty.");
+          return;
+        }
+
+        const allRooms = new Set([...defaultRooms, ...customRooms]);
+        if (allRooms.has(room)) {
+          alert("That room already exists.");
+          return;
+        }
+
+        customRooms.push(room);
+        saveCustomRoomsForCurrentUser();
+        renderCustomRooms();
+
+        await openRoom(room);
+        showPage("chats");
+      });
+    }
+
+    /* ---------- CHAT EVENTS ---------- */
+    chatForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = msgInput.value.trim();
+      if (!text || !username) return;
+
+      socket.emit("chat-message", {
+        room: currentRoom,
+        username,
+        text,
+      });
+
+      msgInput.value = "";
+    });
+
+    function handleMentionFromMessage(msg) {
+      if (!username || !msg || typeof msg.text !== "string") return;
+      if (!msg.text.includes("@" + username)) return;
+      if (msg.senderName === username) return;
+
+      const item = {
+        senderName: msg.senderName || "Someone",
+        room: msg.room || currentRoom,
+        text: msg.text,
+        createdAt: msg.createdAt || new Date().toISOString(),
+      };
+      mentions.push(item);
+      mentionsLoaded = true;
+      renderMentions();
+    }
+
+    socket.on("chat-message", (msg) => {
+      if (msg.room === currentRoom) {
+        appendMessage(msg.senderName, msg.text, msg.createdAt);
+      }
+
+      handleMentionFromMessage(msg);
+
+      if (!userSettings || msg.senderName === username) {
+        loadRecentActivity();
+        return;
+      }
+
+      if (userSettings.enableNotifications === false) {
+        loadRecentActivity();
+        return;
+      }
+
+      const shouldNotifyRoom =
+        msg.room && userSettings.eventRoomMessages;
+
+      if (shouldNotifyRoom) {
+        if (
+          userSettings.soundNotifications &&
+          notificationSound
+        ) {
+          notificationSound.play().catch(() => {});
+        }
+
+        if (
+          userSettings.desktopNotifications &&
+          "Notification" in window
+        ) {
+          if (Notification.permission === "granted") {
+            new Notification(`New message in #${msg.room}`, {
+              body: `${msg.senderName}: ${msg.text}`,
+            });
+          } else if (Notification.permission === "default") {
+            Notification.requestPermission().then((perm) => {
+              if (perm === "granted") {
+                new Notification(`New message in #${msg.room}`, {
+                  body: `${msg.senderName}: ${msg.text}`,
+                });
+              }
+            });
+          }
+        }
+      }
+
+      loadRecentActivity();
+    });
+
+    socket.on("system-message", (msg) => {
+      appendSystem(msg.text, msg.createdAt);
+      loadRecentActivity();
+    });
+
+    /* ---------- HELP DESK ---------- */
+    function setHelpDetail(type) {
+      if (!helpDetail) return;
+
+      if (type === "faq") {
+        helpDetail.innerHTML = `
+          <h3>Frequently Asked Questions</h3>
+          <p>Here are a few quick answers for your chat application:</p>
+          <ul>
+            <li><strong>How do I join a room?</strong> Use the All Chats page and select any channel on the left.</li>
+            <li><strong>Can I change my username?</strong> Log out and sign back in with a different username.</li>
+            <li><strong>Are messages stored?</strong> Yes, your backend (Firestore) stores channel history.</li>
+          </ul>
+        `;
+      } else if (type === "contact") {
+        helpDetail.innerHTML = `
+          <h3>Contact Support</h3>
+          <p>You can reach the support team using any of the options below:</p>
+          <ul>
+            <li>Open the <strong>#general</strong> room and tag an admin.</li>
+            <li>Send an email from your college account to <strong>support@example.com</strong>.</li>
+          </ul>
+          <button class="cta-btn" type="button" onclick="alert('This would open a support chat in a real app.')">
+            <i class="fa-regular fa-comments"></i> Start support chat
+          </button>
+        `;
+      } else if (type === "bug") {
+        helpDetail.innerHTML = `
+          <h3>Report a Bug</h3>
+          <p>Found something that doesn’t work correctly?</p>
+          <ul>
+            <li>Note down what you were doing when the bug happened.</li>
+            <li>Take a screenshot if possible.</li>
+            <li>Send the details to the developer or post in <strong>#development</strong>.</li>
+          </ul>
+        `;
+      } else if (type === "guides") {
+        helpDetail.innerHTML = `
+          <h3>User Guides & Tutorials</h3>
+          <p>Ideas for documentation you can add for your project:</p>
+          <ul>
+            <li>How to sign up and log in.</li>
+            <li>How messages are stored in the database.</li>
+            <li>Security and privacy guidelines for users.</li>
+          </ul>
+        `;
+      } else {
+        helpDetail.innerHTML = `
+          <h3>How can we help?</h3>
+          <p>Select any card above to see more details, quick tips and actions.</p>
+        `;
+      }
+    }
+
+    helpCards.forEach((card) => {
+      card.addEventListener("click", () => {
+        const type = card.dataset.help;
+        setHelpDetail(type);
+      });
+    });
+
+    /* ---------- SETTINGS INTERACTIONS ---------- */
+    if (changeAvatarBtn && avatarInputEl) {
+      changeAvatarBtn.addEventListener("click", () => {
+        if (!username) {
+          alert("Please login first.");
+          return;
+        }
+        avatarInputEl.click();
+      });
+
+      avatarInputEl.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+          const dataUrl = evt.target.result;
+          if (!userSettings) return;
+          userSettings.avatarDataUrl = dataUrl;
+          saveSettingsForCurrentUser();
+          applySettingsToUI();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    if (settingsEmailInput) {
+      settingsEmailInput.addEventListener("change", () => {
+        if (!userSettings) return;
+        userSettings.email = settingsEmailInput.value.trim();
+        saveSettingsForCurrentUser();
+      });
+    }
+
+    if (desktopToggle) {
+      desktopToggle.addEventListener("change", async () => {
+        if (!userSettings) return;
+        if (desktopToggle.checked) {
+          if (!("Notification" in window)) {
+            alert("Desktop notifications are not supported in this browser.");
+            desktopToggle.checked = false;
+            userSettings.desktopNotifications = false;
+            saveSettingsForCurrentUser();
+            applyNotifPageFromSettings();
+            return;
+          }
+          const permission = await Notification.requestPermission();
+          if (permission !== "granted") {
+            alert("Notification permission was not granted.");
+            desktopToggle.checked = false;
+            userSettings.desktopNotifications = false;
+          } else {
+            userSettings.desktopNotifications = true;
+          }
+        } else {
+          userSettings.desktopNotifications = false;
+        }
+        saveSettingsForCurrentUser();
+        applyNotifPageFromSettings();
+      });
+    }
+
+    if (soundToggle) {
+      soundToggle.addEventListener("change", () => {
+        if (!userSettings) return;
+        userSettings.soundNotifications = soundToggle.checked;
+        saveSettingsForCurrentUser();
+        applyNotifPageFromSettings();
+
+        if (soundToggle.checked && notificationSound) {
+          notificationSound.play().catch(() => {});
+        }
+      });
+    }
+
+    if (dmsToggle) {
+      dmsToggle.addEventListener("change", () => {
+        if (!userSettings) return;
+        userSettings.allowDMs = dmsToggle.checked;
+        saveSettingsForCurrentUser();
+      });
+    }
+
+    if (manageBlockedBtn) {
+      manageBlockedBtn.addEventListener("click", () => {
+        if (!userSettings) return;
+        const current = userSettings.blockedUsers || [];
+        const currentStr = current.join(", ");
+        const input = prompt(
+          "Blocked users (comma separated usernames):",
+          currentStr
+        );
+        if (input === null) return;
+        const list = input
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+        userSettings.blockedUsers = list;
+        saveSettingsForCurrentUser();
+        alert("Blocked users updated: " + (list.join(", ") || "none"));
+      });
+    }
+
+    if (changePasswordBtn) {
+      changePasswordBtn.addEventListener("click", () => {
+        alert(
+          "In this demo project, password changes are handled by the backend.\n\n" +
+            "Your existing login/signup API is left unchanged so your backend is safe.\n" +
+            "You can extend the server later with /api/change-password if required."
+        );
+      });
+    }
+
+    /* ---------- NOTIFICATION PAGE INTERACTIONS ---------- */
+    if (notifEnableMaster) {
+      notifEnableMaster.addEventListener("change", () => {
+        if (!userSettings) return;
+        userSettings.enableNotifications = notifEnableMaster.checked;
+        saveSettingsForCurrentUser();
+        applyNotifPageFromSettings();
+      });
+    }
+
+    if (notifDesktopToggle) {
+      notifDesktopToggle.addEventListener("change", async () => {
+        if (!userSettings) return;
+        desktopToggle.checked = notifDesktopToggle.checked;
+        desktopToggle.dispatchEvent(new Event("change"));
+      });
+    }
+
+    if (notifInAppToggle) {
+      notifInAppToggle.addEventListener("change", () => {
+        if (!userSettings) return;
+        userSettings.inAppAlerts = notifInAppToggle.checked;
+        saveSettingsForCurrentUser();
+      });
+    }
+
+    if (notifSoundToggle) {
+      notifSoundToggle.addEventListener("change", () => {
+        if (!userSettings) return;
+        soundToggle.checked = notifSoundToggle.checked;
+        soundToggle.dispatchEvent(new Event("change"));
+      });
+    }
+
+    if (notifSoundDefault) {
+      notifSoundDefault.addEventListener("click", () => {
+        if (!notificationSound) {
+          alert("Unable to play sound in this browser.");
+          return;
+        }
+        notificationSound.play().catch(() => {});
+      });
+    }
+
+    if (notifEventDM) {
+      notifEventDM.addEventListener("change", () => {
+        if (!userSettings) return;
+        userSettings.eventDMs = notifEventDM.checked;
+        saveSettingsForCurrentUser();
+      });
+    }
+
+    if (notifEventMention) {
+      notifEventMention.addEventListener("change", () => {
+        if (!userSettings) return;
+        userSettings.eventMentions = notifEventMention.checked;
+        saveSettingsForCurrentUser();
+      });
+    }
+
+    if (notifEventRoom) {
+      notifEventRoom.addEventListener("change", () => {
+        if (!userSettings) return;
+        userSettings.eventRoomMessages = notifEventRoom.checked;
+        saveSettingsForCurrentUser();
+      });
+    }
+
+    if (notifResetBtn) {
+      notifResetBtn.addEventListener("click", () => {
+        if (!userSettings) return;
+        userSettings = { ...DEFAULT_SETTINGS };
+        saveSettingsForCurrentUser();
+        applySettingsToUI();
+        alert("Notification settings reset to default.");
+      });
+    }
+
+    if (notifSaveBtn) {
+      notifSaveBtn.addEventListener("click", () => {
+        saveSettingsForCurrentUser();
+        alert("Notification settings saved.");
+      });
+    }
+
+    /* ---------- MENTIONS PAGE LOGIC ---------- */
+
+    function renderMentions() {
+      if (!mentionsListEl) return;
+
+      let list = [...mentions];
+      list.sort((a, b) => {
+        const ta = new Date(a.createdAt || Date.now()).getTime();
+        const tb = new Date(b.createdAt || Date.now()).getTime();
+        return tb - ta;
+      });
+
+      const lastSeen = userSettings ? userSettings.mentionsLastSeen || 0 : 0;
+      if (currentMentionsFilter === "unread") {
+        list = list.filter(
+          (m) => new Date(m.createdAt || Date.now()).getTime() > lastSeen
+        );
+      }
+
+      const q = (mentionsSearchInput.value || "").trim().toLowerCase();
+      if (q) {
+        list = list.filter((m) => {
+          return (
+            (m.text || "").toLowerCase().includes(q) ||
+            (m.senderName || "").toLowerCase().includes(q) ||
+            (m.room || "").toLowerCase().includes(q)
+          );
+        });
+      }
+
+      mentionsListEl.innerHTML = "";
+
+      if (!list.length) {
+        mentionsListEl.innerHTML =
+          '<div class="mentions-empty">No mentions found.</div>';
+        return;
+      }
+
+      list.forEach((m) => {
+        const row = document.createElement("div");
+        row.className = "mention-item";
+
+        const left = document.createElement("div");
+        left.className = "mention-left";
+
+        const avatar = document.createElement("div");
+        avatar.className = "mention-avatar";
+        avatar.style.backgroundImage =
+          "url('https://ui-avatars.com/api/?name=" +
+          encodeURIComponent(m.senderName || "User") +
+          "')";
+
+        const content = document.createElement("div");
+        content.className = "mention-content";
+
+        const title = document.createElement("div");
+        title.className = "mention-title";
+        const roomLabel = m.room ? `#${m.room}` : "";
+        title.innerHTML = `<strong>${m.senderName || "Someone"}</strong> <span class="mention-room">in ${roomLabel}</span>`;
+
+        const textDiv = document.createElement("div");
+        textDiv.className = "mention-text";
+        const safeText =
+          (m.text || "").replace(
+            new RegExp("@" + username, "g"),
+            '<span class="mention-tag">@you</span>'
+          );
+        textDiv.innerHTML = safeText;
+
+        const goBtn = document.createElement("button");
+        goBtn.type = "button";
+        goBtn.className = "mention-link";
+        goBtn.textContent = "Go to message →";
+        goBtn.addEventListener("click", async () => {
+          await openRoom(m.room || "general");
+          showPage("chats");
+        });
+
+        content.appendChild(title);
+        content.appendChild(textDiv);
+        content.appendChild(goBtn);
+
+        left.appendChild(avatar);
+        left.appendChild(content);
+
+        const time = document.createElement("div");
+        time.className = "mention-time";
+        const d = m.createdAt ? new Date(m.createdAt) : new Date();
+        const now = new Date();
+        const diffMs = now - d;
+        const diffMin = Math.round(diffMs / 60000);
+        let label;
+        if (diffMin < 1) label = "Just now";
+        else if (diffMin < 60) label = diffMin + "m ago";
+        else {
+          const diffHours = Math.round(diffMin / 60);
+          if (diffHours < 24) label = diffHours + "h ago";
+          else if (diffHours < 48) label = "Yesterday";
+          else {
+            const diffDays = Math.round(diffHours / 24);
+            label = diffDays + " days ago";
+          }
+        }
+        time.textContent = label;
+
+        row.appendChild(left);
+        row.appendChild(time);
+
+        mentionsListEl.appendChild(row);
+      });
+    }
+
+    async function buildInitialMentions() {
+      if (!username) return;
+      mentions = [];
+      const roomsToCheck = [...defaultRooms, ...customRooms];
+      const atToken = "@" + username;
+
+      for (const room of roomsToCheck) {
+        try {
+          const res = await fetch(`/api/messages/${room}`);
+          const data = await res.json();
+          if (!Array.isArray(data)) continue;
+          data.forEach((m) => {
+            if (
+              m.senderName &&
+              m.senderName !== username &&
+              typeof m.text === "string" &&
+              m.text.includes(atToken)
+            ) {
+              mentions.push({
+                senderName: m.senderName,
+                room: m.room || room,
+                text: m.text,
+                createdAt: m.createdAt || new Date().toISOString(),
+              });
+            }
+          });
+        } catch {
+          // ignore room errors
+        }
+      }
+
+      mentionsLoaded = true;
+      renderMentions();
+    }
+
+    mentionsTabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tab = btn.getAttribute("data-mentions-tab");
+        currentMentionsFilter = tab || "all";
+        mentionsTabButtons.forEach((b) =>
+          b.classList.toggle("active", b === btn)
+        );
+        renderMentions();
+      });
+    });
+
+    if (mentionsSearchInput) {
+      mentionsSearchInput.addEventListener("input", () => {
+        renderMentions();
+      });
+    }
+
+    /* ---------- DRAFTS PAGE LOGIC (NEW) ---------- */
+
+    function formatRelativeTime(dateIso) {
+      const d = dateIso ? new Date(dateIso) : new Date();
+      const now = new Date();
+      const diffMs = now - d;
+      const diffMin = Math.round(diffMs / 60000);
+
+      if (diffMin < 1) return "Just now";
+      if (diffMin < 60) return `${diffMin} minutes ago`;
+      const diffHours = Math.round(diffMin / 60);
+      if (diffHours < 24) return `${diffHours} hours ago`;
+      const diffDays = Math.round(diffHours / 24);
+      if (diffDays === 1) return "1 day ago";
+      return `${diffDays} days ago`;
+    }
+
+    function renderDraftsList() {
+      if (!draftsListEl) return;
+
+      let list = [...drafts];
+
+      const q = (draftsFilterInput && draftsFilterInput.value || "")
+        .trim()
+        .toLowerCase();
+
+      if (q) {
+        list = list.filter((d) => {
+          return (
+            (d.to || "").toLowerCase().includes(q) ||
+            (d.body || "").toLowerCase().includes(q)
+          );
+        });
+      }
+
+      draftsListEl.innerHTML = "";
+
+      if (!list.length) {
+        draftsListEl.innerHTML =
+          '<div class="drafts-list-empty">No drafts found.</div>';
+        return;
+      }
+
+      list.sort((a, b) => {
+        const ta = new Date(a.updatedAt || Date.now()).getTime();
+        const tb = new Date(b.updatedAt || Date.now()).getTime();
+        return tb - ta;
+      });
+
+      list.forEach((d) => {
+        const row = document.createElement("div");
+        row.className = "draft-item";
+        row.dataset.id = d.id;
+
+        const main = document.createElement("div");
+        main.className = "draft-main";
+
+        const to = document.createElement("div");
+        to.className = "draft-to";
+        to.innerHTML = `To: <span>${d.to || "Untitled"}</span>`;
+
+        const body = document.createElement("div");
+        body.className = "draft-body";
+        body.textContent = d.body || "(empty draft)";
+
+        const meta = document.createElement("div");
+        meta.className = "draft-meta";
+        meta.textContent = "Last edited: " + formatRelativeTime(d.updatedAt);
+
+        main.appendChild(to);
+        main.appendChild(body);
+        main.appendChild(meta);
+
+        const actions = document.createElement("div");
+        actions.className = "draft-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "draft-edit-btn";
+        editBtn.innerHTML = '<i class="fa-regular fa-pen-to-square"></i> Edit';
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "draft-delete-btn";
+        deleteBtn.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
+
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+
+        row.appendChild(main);
+        row.appendChild(actions);
+
+        draftsListEl.appendChild(row);
+      });
+    }
+
+    function createOrEditDraft(existingId) {
+      if (!username) {
+        alert("Please login first.");
+        return;
+      }
+
+      let draft = null;
+      if (existingId) {
+        draft = drafts.find((d) => d.id === existingId);
+        if (!draft) return;
+      }
+
+      const currentTo = draft ? draft.to : "";
+      const currentBody = draft ? draft.body : "";
+
+      const to = prompt("To (person or channel):", currentTo);
+      if (to === null) return;
+
+      const body = prompt("Draft message:", currentBody);
+      if (body === null) return;
+
+      const trimmedTo = to.trim();
+      const trimmedBody = body.trim();
+      const nowIso = new Date().toISOString();
+
+      if (draft) {
+        draft.to = trimmedTo;
+        draft.body = trimmedBody;
+        draft.updatedAt = nowIso;
+      } else {
+        drafts.push({
+          id: "draft-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+          to: trimmedTo,
+          body: trimmedBody,
+          updatedAt: nowIso,
+        });
+      }
+
+      saveDraftsForCurrentUser();
+      renderDraftsList();
+    }
+
+    if (draftsNewBtn) {
+      draftsNewBtn.addEventListener("click", () => {
+        createOrEditDraft(null);
+      });
+    }
+
+    if (draftsFilterInput) {
+      draftsFilterInput.addEventListener("input", () => {
+        renderDraftsList();
+      });
+    }
+
+    if (draftsListEl) {
+      draftsListEl.addEventListener("click", (e) => {
+        const row = e.target.closest(".draft-item");
+        if (!row) return;
+        const id = row.dataset.id;
+
+        if (e.target.closest(".draft-edit-btn")) {
+          createOrEditDraft(id);
+          return;
+        }
+
+        if (e.target.closest(".draft-delete-btn")) {
+          const draft = drafts.find((d) => d.id === id);
+          const name = draft ? draft.to || "this draft" : "this draft";
+          if (!confirm(`Delete "${name}"?`)) return;
+          drafts = drafts.filter((d) => d.id !== id);
+          saveDraftsForCurrentUser();
+          renderDraftsList();
+          return;
+        }
+      });
+    }
+
+    /* ---------- AUTO-LOGIN ---------- */
+    window.addEventListener("load", async () => {
+      const savedUser = localStorage.getItem("chat_username");
+      if (!savedUser) return;
+
+      username = savedUser;
+      usernameInput.value = savedUser;
+
+      welcomeNameEl.textContent = username + "!";
+
+      authScreen.style.display = "none";
+      workspace.classList.add("visible");
+
+      initSettingsForUser();
+      initDraftsForUser();
+
+      await joinRoom(currentRoom, username);
+      await loadMessages(currentRoom);
+      await loadRecentActivity();
+      showPage("home");
+    });
+  </script>
+</body>
+</html>

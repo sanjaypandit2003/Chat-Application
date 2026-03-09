@@ -273,6 +273,33 @@ io.on("connection", (socket) => {
 // =====================================================
 //  START SERVER
 // =====================================================
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+// Try listening on the desired port, and if it's in use try subsequent ports.
+const START_PORT = Number(process.env.PORT) || 3000;
+const MAX_PORT_ATTEMPTS = 20;
+
+function tryListen(port, attempt = 1) {
+  server.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+  });
+
+  server.on("error", (err) => {
+    if (err && err.code === "EADDRINUSE") {
+      if (attempt >= MAX_PORT_ATTEMPTS) {
+        console.error(
+          `Ports ${START_PORT}..${START_PORT + MAX_PORT_ATTEMPTS - 1} are in use. Exiting.`
+        );
+        process.exit(1);
+      }
+      const nextPort = port + 1;
+      console.warn(`Port ${port} in use — trying port ${nextPort}...`);
+      // small delay before retry to avoid tight loop
+      setTimeout(() => tryListen(nextPort, attempt + 1), 150);
+      return;
+    }
+
+    console.error("Server error:", err);
+    process.exit(1);
+  });
+}
+
+tryListen(START_PORT);
